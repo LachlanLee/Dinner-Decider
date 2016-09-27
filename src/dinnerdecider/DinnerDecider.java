@@ -2,6 +2,7 @@ package dinnerdecider;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,37 +27,34 @@ public class DinnerDecider {
 	 * Creates the list of possible meals from the given text file
 	 * @return map containing the number of the meal as the key, and a Meal object containing its name and filters
 	 */
-	private static Map<Integer, Meal> createList(){
-		Map<Integer, Meal> dinnerList = new HashMap<Integer, Meal>();
+	private static List<Meal> createList(){
+		List<Meal> dinnerList = new ArrayList<Meal>();
 		
-		try {
-			//Start reading the meal file
-			Scanner meals = new Scanner(new File("DinnerList.txt"));
+		//Start reading the meal file
+		InputStream is = DinnerDecider.class.getResourceAsStream("DinnerList.txt");
+		Scanner meals = new Scanner(is);
+		
+		//For each meal, get its number, name, and filters, then add to the map
+		while(meals.hasNext()){
+			String name = meals.next();
 			
-			//For each meal, get its number, name, and filters, then add to the map
-			while(meals.hasNext()){
-				int number = meals.nextInt();
-				String name = meals.next();
-				
-				//Read the meals filter list
-				Scanner filters = new Scanner(meals.nextLine());
-				
-				Set<String> filterList = new HashSet<String>();
-				
-				//Add each filter to a list
-				while(filters.hasNext()){
-					filterList.add(filters.next());
-				}
-				
-				//Add the meal to the map
-				dinnerList.put(number, new Meal(name, filterList));
-				
-				filters.close();
-				meals.close();
+			//Read the meals filter list
+			Scanner filters = new Scanner(meals.nextLine());
+			
+			Set<String> filterList = new HashSet<String>();
+			
+			//Add each filter to a list
+			while(filters.hasNext()){
+				filterList.add(filters.next());
 			}
-		} catch (FileNotFoundException e) {
-			System.out.println("Dinner List not found");
+			
+			//Add the meal to the map
+			dinnerList.add(new Meal(name, filterList));
+			
+			filters.close();
 		}
+		
+		meals.close();
 		return dinnerList;
 	}
 	
@@ -64,13 +62,13 @@ public class DinnerDecider {
 	 * Format the meal names to replace the hyphens with white space
 	 * @param meals - the map containing the meals
 	 */
-	private static void formatNames(Map<Integer, Meal> meals){
-		for(int num : meals.keySet()){
-			Meal newMeal = meals.get(num);
+	private static void formatNames(List<Meal> meals){
+		for(int i = 0; i < meals.size(); i++){
 			//Replace all the hyphens in the name with white space
-			String newName = newMeal.getName().replace('-', ' ');
+			String newName = meals.get(i).getName().replace('-', ' ');
 			//Replace that meals entry with one with the new name
-			meals.put(num, new Meal(newName, newMeal.getFilters()));
+			meals.add(new Meal(newName, meals.get(i).getFilters()));
+			meals.remove(meals.get(i));
 		}
 	}
 	
@@ -79,14 +77,14 @@ public class DinnerDecider {
 	 * @param meals - the map of meals
 	 * @return a set of the meal types to filter out
 	 */
-	private static Set<String> getFilterList(Map<Integer, Meal> meals){
+	private static Set<String> getFilterList(List<Meal> meals){
 		Set<String> filterList = new HashSet<String>();
 		List<String> unfilter = new ArrayList<String>();
 		Scanner input = new Scanner(System.in);
 		
 		//Add all the meal types to the filter list
-		for(int num : meals.keySet()){
-			for(String filt : meals.get(num).getFilters()){
+		for(Meal m : meals){
+			for(String filt : m.getFilters()){
 				if(!filterList.contains(filt)){ filterList.add(filt);}
 			}
 		}
@@ -112,19 +110,19 @@ public class DinnerDecider {
 	 * @param meals - map of meals
 	 * @param filters - set of meal types to filter
 	 */
-	private static void filter(Map<Integer, Meal> meals, Set<String> filters){
-		List<Integer> toRemove = new ArrayList<Integer>();
+	private static void filter(List<Meal> meals, Set<String> filters){
+		List<Meal> toRemove = new ArrayList<Meal>();
 		
 		//Get the list of meal numbers to filter out
-		for(int num : meals.keySet()){
-			for(String filt : meals.get(num).getFilters()){
-				if(filters.contains(filt)){ toRemove.add(num); }
+		for(Meal i : meals){
+			for(String filt : i.getFilters()){
+				if(filters.contains(filt)){ toRemove.add(i); }
 			}
 		}
 		
 		//Remove the filtered meals
-		for(int i : toRemove){
-			meals.remove(i);
+		for(Meal i : toRemove){
+			meals.remove(meals.indexOf(i));
 		}
 	}
 	
@@ -132,13 +130,12 @@ public class DinnerDecider {
 	 * Decide which meal to make and print to the console
 	 * @param meals - map of meals
 	 */
-	private static void decide(Map<Integer, Meal> meals){
+	private static void decide(List<Meal> meals){
 		Random rand = new Random();
 		int mealNumber = 0;
-		
 		//Generate a random number between 1 and the number of meals, then print the name attached to that number in the map
 		if(meals.size() > 1){
-			mealNumber = rand.nextInt(meals.size()-1) + 1;
+			mealNumber = rand.nextInt(meals.size()-1);
 			System.out.println("Tonights Dinner is: " + meals.get(mealNumber).getName());
 		}
 		//If only one meal in the map, print that
@@ -157,7 +154,7 @@ public class DinnerDecider {
 		System.out.println("");
 		
 		//Create list of meals
-		Map<Integer, Meal> dinnerList = createList();
+		List<Meal> dinnerList = createList();
 		//Create list of filters
 		Set<String> filterList = getFilterList(dinnerList);
 		
